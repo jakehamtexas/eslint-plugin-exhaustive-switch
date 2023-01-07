@@ -153,6 +153,23 @@ const invalid: InvalidTestCase<MessageIds, Options>[] = [
         "switch (foo) { default: { assertNever(foo); } case 'bar': doSomething(); break; }",
     }
   ),
+  ...testCaseFactory(
+    {
+      baseName: "member expression discriminant",
+    } as const,
+    {
+      name: "empty default",
+      code: "switch (foo.bar) { default: { } }",
+      output: "switch (foo.bar) { default: { assertUnreachable(foo); } }",
+      errors: [{ messageId: "addExhaustiveFunctionInvocation" }],
+    },
+    {
+      name: "no default",
+      code: "switch (foo.bar) { }",
+      output: "switch (foo.bar) { default: assertUnreachable(foo); }",
+      errors: [{ messageId: "addDefaultCase" }],
+    }
+  ),
 ];
 
 ruleTester.run(RULE_NAME, UnreachableDefaultCase, {

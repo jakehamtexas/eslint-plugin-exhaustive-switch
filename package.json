@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-exhaustive-switch",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "packageManager": "yarn@3.3.1",
   "description": "Rules for making switch/case expressions for union type values exhaustively checkable at compile time.",
   "keywords": [

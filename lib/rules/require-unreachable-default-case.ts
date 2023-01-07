@@ -4,6 +4,7 @@ import type {
   RuleModule as TSRuleModule,
 } from "@typescript-eslint/utils/dist/ts-eslint/Rule";
 import _ from "lodash";
+import { assertUnreachable } from "../assert-unreachable";
 import type { RequireUnreachableDefaultCase as RequireUnreachableDefaultCaseOptions } from "./require-unreachable-default-case.schema";
 import schema from "./require-unreachable-default-case.schema.json";
 
@@ -26,16 +27,79 @@ export type MessageIds = keyof typeof CASES;
 export type Options = [RequireUnreachableDefaultCaseOptions | undefined];
 type RuleModule = TSRuleModule<MessageIds, Options>;
 
-function getMaybeDiscriminantIdentifier(node: TSESTree.Node) {
-  const discriminant =
-    node.parent?.type === TSESTree.AST_NODE_TYPES.SwitchStatement
-      ? node.parent.discriminant
-      : node.type === TSESTree.AST_NODE_TYPES.SwitchStatement
-      ? node.discriminant
-      : undefined;
-  return discriminant?.type === TSESTree.AST_NODE_TYPES.Identifier
-    ? discriminant.name
-    : undefined;
+type IdentifierNodeResult =
+  | {
+      type: "found";
+      discriminant: TSESTree.Expression;
+      argument: TSESTree.Expression;
+    }
+  | { type: "not-found" }
+  | { type: "unfixable" };
+function getMaybeIdentifierNode(
+  node: TSESTree.Node | undefined
+): IdentifierNodeResult {
+  if (!node) {
+    return { type: "not-found" };
+  }
+
+  if (node.type === TSESTree.AST_NODE_TYPES.SwitchStatement) {
+    switch (node.discriminant.type) {
+      case TSESTree.AST_NODE_TYPES.ArrayPattern:
+      case TSESTree.AST_NODE_TYPES.ArrowFunctionExpression:
+      case TSESTree.AST_NODE_TYPES.AssignmentExpression:
+      case TSESTree.AST_NODE_TYPES.AwaitExpression:
+      case TSESTree.AST_NODE_TYPES.BinaryExpression:
+      case TSESTree.AST_NODE_TYPES.CallExpression:
+      case TSESTree.AST_NODE_TYPES.ChainExpression:
+      case TSESTree.AST_NODE_TYPES.ClassExpression:
+      case TSESTree.AST_NODE_TYPES.ConditionalExpression:
+      case TSESTree.AST_NODE_TYPES.FunctionExpression:
+      case TSESTree.AST_NODE_TYPES.ImportExpression:
+      case TSESTree.AST_NODE_TYPES.JSXElement:
+      case TSESTree.AST_NODE_TYPES.JSXFragment:
+      case TSESTree.AST_NODE_TYPES.Literal:
+      case TSESTree.AST_NODE_TYPES.TemplateLiteral:
+      case TSESTree.AST_NODE_TYPES.LogicalExpression:
+      case TSESTree.AST_NODE_TYPES.MetaProperty:
+      case TSESTree.AST_NODE_TYPES.NewExpression:
+      case TSESTree.AST_NODE_TYPES.ObjectExpression:
+      case TSESTree.AST_NODE_TYPES.ObjectPattern:
+      case TSESTree.AST_NODE_TYPES.SequenceExpression:
+      case TSESTree.AST_NODE_TYPES.TSAsExpression:
+      case TSESTree.AST_NODE_TYPES.TSSatisfiesExpression:
+      case TSESTree.AST_NODE_TYPES.Super:
+      case TSESTree.AST_NODE_TYPES.TaggedTemplateExpression:
+      case TSESTree.AST_NODE_TYPES.ThisExpression:
+      case TSESTree.AST_NODE_TYPES.TSInstantiationExpression:
+      case TSESTree.AST_NODE_TYPES.TSNonNullExpression:
+      case TSESTree.AST_NODE_TYPES.TSTypeAssertion:
+      case TSESTree.AST_NODE_TYPES.UnaryExpression:
+      case TSESTree.AST_NODE_TYPES.UpdateExpression:
+      case TSESTree.AST_NODE_TYPES.YieldExpression:
+      case TSESTree.AST_NODE_TYPES.ArrayExpression: {
+        return { type: "unfixable" };
+      }
+      case TSESTree.AST_NODE_TYPES.MemberExpression: {
+        return {
+          type: "found",
+          discriminant: node.discriminant,
+          argument: node.discriminant.object,
+        };
+      }
+      case TSESTree.AST_NODE_TYPES.Identifier: {
+        return {
+          type: "found",
+          discriminant: node.discriminant,
+          argument: node.discriminant,
+        };
+      }
+      default: {
+        assertUnreachable(node.discriminant);
+      }
+    }
+  }
+
+  return getMaybeIdentifierNode(node.parent);
 }
 
 export const RULE_NAME = "require-unreachable-default-case";
@@ -54,6 +118,7 @@ const ruleModule: RuleModule = {
     messages: _.mapValues(CASES, ({ message }) => message),
   },
   create: (context) => {
+    const sourceCode = context.getSourceCode();
     const exhaustiveFunctionName =
       context.options[0]?.unreachableDefaultCaseAssertionFunctionName ??
       schema.properties.unreachableDefaultCaseAssertionFunctionName.default;
@@ -81,9 +146,24 @@ const ruleModule: RuleModule = {
                 return null;
               }
 
-              const discriminantIdentifier =
-                getMaybeDiscriminantIdentifier(node) ?? "";
-              const replacementText = `${exhaustiveFunctionName}(${discriminantIdentifier});`;
+              const identifierNodeResult = getMaybeIdentifierNode(node);
+              switch (identifierNodeResult.type) {
+                case "found": {
+                  break;
+                }
+                case "not-found":
+                case "unfixable": {
+                  // eslint-disable-next-line unicorn/no-null
+                  return null;
+                }
+                default: {
+                  assertUnreachable(identifierNodeResult);
+                }
+              }
+              const argumentSourceCode = sourceCode.getText(
+                identifierNodeResult.argument
+              );
+              const replacementText = `${exhaustiveFunctionName}(${argumentSourceCode});`;
               if (
                 defaultCaseConsequentFirstNode.type ===
                 TSESTree.AST_NODE_TYPES.BlockStatement
@@ -108,9 +188,24 @@ const ruleModule: RuleModule = {
           messageId: "addDefaultCase",
           fix: (fixer) => {
             const lastCaseStatement = _.last(node.cases);
-            const discriminantIdentifier =
-              getMaybeDiscriminantIdentifier(node) ?? "";
-            const exhaustiveFunctionInvocationText = `${exhaustiveFunctionName}(${discriminantIdentifier});`;
+            const identifierNodeResult = getMaybeIdentifierNode(node);
+            switch (identifierNodeResult.type) {
+              case "found": {
+                break;
+              }
+              case "not-found":
+              case "unfixable": {
+                // eslint-disable-next-line unicorn/no-null
+                return null;
+              }
+              default: {
+                assertUnreachable(identifierNodeResult);
+              }
+            }
+            const argumentSourceCode = sourceCode.getText(
+              identifierNodeResult.argument
+            );
+            const exhaustiveFunctionInvocationText = `${exhaustiveFunctionName}(${argumentSourceCode});`;
 
             // If other cases use braces, copy style
             if (
@@ -133,7 +228,9 @@ const ruleModule: RuleModule = {
 
             return fixer.replaceText(
               node,
-              `switch (${discriminantIdentifier}) { ${defaultCaseStatement} }`
+              `switch (${sourceCode.getText(
+                identifierNodeResult.discriminant
+              )}) { ${defaultCaseStatement} }`
             );
           },
         });
