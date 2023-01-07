@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "module": "CommonJS",
+    "target": "ES2022",
+    "moduleResolution": "Node"
+  },
+  "ts-node": {
+    "transpileOnly": true,
+    "esm": true,
+    "swc": true
+  }
+}
