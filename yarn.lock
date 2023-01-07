@@ -2638,6 +2638,7 @@ __metadata:
     eslint-plugin-eslint-plugin: ^5.0.0
     eslint-plugin-node: ^11.1.0
     eslint-plugin-unicorn: ^45.0.2
+    espree: ^9.4.1
     jest: ^29.3.1
     json-schema-to-typescript: ^11.0.2
     lodash: ^4.17.21
@@ -2649,6 +2650,7 @@ __metadata:
     typescript: ^4.9.4
   peerDependencies:
     eslint: ">=7"
+    espree: ^9.4.1
   languageName: unknown
   linkType: soft
 
@@ -2804,7 +2806,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"espree@npm:^9.4.0":
+"espree@npm:^9.4.0, espree@npm:^9.4.1":
   version: 9.4.1
   resolution: "espree@npm:9.4.1"
   dependencies:

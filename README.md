@@ -4,13 +4,14 @@ Rules for making switch/case expressions for union type values exhaustively chec
 
 ## Installation
 
-You'll first need to install [ESLint](https://eslint.org/):
+You'll first need to install [ESLint](https://eslint.org/) and its dependency, `espree`:
 
 ```sh
-npm i eslint --save-dev
+npm i eslint espree --save-dev
 ```
 
-Next, install `eslint-plugin-exhaustive-switch`:
+Next, install `eslint-plugin-exhaustive-switch`. If you want to use the included `assertUnreachable` in your source
+code, make sure to save it as a `dependency` and not a `devDependency`.
 
 ```sh
 npm install eslint-plugin-exhaustive-switch --save-dev
@@ -26,7 +27,7 @@ Add `exhaustive-switch` to the plugins section of your `.eslintrc` configuration
 }
 ```
 
-Then (optionally) configure the rules you want to use under the rules section.
+Then configure the rule under the rules section.
 
 ```json
 {

@@ -4,7 +4,7 @@
 
 <!-- end auto-generated rule header -->
 
-> Require a `switch` statement to always have a `default`, and for that `default` case to call an unreachable assertion function.
+> Require a `switch` statement to always have a `default` case, and for that `default` case to call an unreachable assertion function.
 
 ```json
 {
